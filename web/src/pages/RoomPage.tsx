@@ -85,17 +85,17 @@ export default function RoomPage(p: Props) {
 				)}
 			</section>
 
-			<div className="status-line">
-				{speakerName ? (
-					<span className="speaking-text">
-						{speakerName === '我' ? '你正在说话' : `${speakerName} 正在说话…`}
-					</span>
-				) : (
-					<span className="muted small">按住下方按钮说话</span>
-				)}
-			</div>
-
 			<div className="ptt-zone">
+				<div className="status-line">
+					{speakerName ? (
+						<span className="speaking-text">
+							{speakerName === '我' ? '你正在说话' : `${speakerName} 正在说话…`}
+						</span>
+					) : (
+						<span className="muted small">按住下方按钮说话</span>
+					)}
+				</div>
+
 				<button
 					type="button"
 					className={`ptt ${p.speaking ? 'active' : ''}`}
@@ -108,9 +108,10 @@ export default function RoomPage(p: Props) {
 				>
 					<span className="ptt-label">{p.speaking ? '松开结束' : '按住说话'}</span>
 				</button>
+
 				<div className="level-bars" aria-hidden="true">
-				<div className="level local" style={{ transform: `scaleX(${Math.min(1, p.localLevel * 1.6)})` }} />
-				<div className="level remote" style={{ transform: `scaleX(${Math.min(1, p.remoteLevel * 1.6)})` }} />
+					<div className="level local" style={{ transform: `scaleX(${Math.min(1, p.localLevel * 1.6)})` }} />
+					<div className="level remote" style={{ transform: `scaleX(${Math.min(1, p.remoteLevel * 1.6)})` }} />
 				</div>
 			</div>
 

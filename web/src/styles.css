@@ -195,7 +195,8 @@ body {
 
 .members {
 	padding: 12px 16px 0;
-	max-height: 26vh;
+	flex: 1;
+	min-height: 0;
 	overflow-y: auto;
 }
 
@@ -254,9 +255,8 @@ body {
 }
 
 .status-line {
-	padding: 10px 16px 0;
 	text-align: center;
-	min-height: 26px;
+	min-height: 24px;
 }
 
 .speaking-text {
@@ -265,13 +265,12 @@ body {
 }
 
 .ptt-zone {
-	flex: 1;
+	flex: none;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	justify-content: center;
-	gap: 18px;
-	padding: 12px;
+	gap: 12px;
+	padding: 10px 12px 6px;
 }
 
 .ptt {

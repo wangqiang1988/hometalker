@@ -1,5 +1,5 @@
 {
-	"name": "footalker",
+	"name": "hometalker",
 	"version": "1.0.0",
 	"private": true,
 	"description": "家庭内网对讲 —— 部署在家庭内网服务器上的手机网页对讲应用",
@@ -9,6 +9,10 @@
 		"test": "node scripts/smoke.mjs",
 		"test:behavior": "node scripts/behavior.mjs",
 		"test:browser": "node scripts/browser-e2e.mjs",
+		"screenshots": "node scripts/screenshots.mjs",
 		"start": "npm --prefix server run start"
+	},
+	"devDependencies": {
+		"puppeteer-core": "^23.11.1"
 	}
 }

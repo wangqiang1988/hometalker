@@ -51,7 +51,7 @@ export default function Gate({ error, initial, onEnter, onForget }: Props) {
 							type="password"
 							value={code}
 							onChange={(e) => setCode(e.target.value)}
-							placeholder="••••"
+							placeholder="家庭口令"
 							autoComplete="current-password"
 							required
 						/>

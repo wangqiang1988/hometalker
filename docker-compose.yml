@@ -1,7 +1,7 @@
 services:
   caddy:
     image: caddy:2-alpine
-    container_name: footalker-caddy
+    container_name: hometalker-caddy
     restart: unless-stopped
     depends_on:
       - server
@@ -19,7 +19,7 @@ services:
     build:
       context: .
       dockerfile: server/Dockerfile
-    container_name: footalker-server
+    container_name: hometalker-server
     restart: unless-stopped
     environment:
       PORT: "${PORT:-8443}"
