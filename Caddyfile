@@ -1,0 +1,17 @@
+{
+	admin off
+	auto_https disable_redirects
+	skip_install_trust
+}
+
+https://{$SITE_ADDR} {
+	tls internal
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	reverse_proxy server:{$PORT}
+}
