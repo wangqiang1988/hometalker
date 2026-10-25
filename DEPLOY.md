@@ -10,6 +10,7 @@
 - [前置条件](#前置条件)
 - [部署步骤](#部署步骤)
 - [给手机装证书](#给手机装证书)
+- [给电脑装证书](#给电脑装证书windows--macos--linux)
 - [局域网设置](#局域网设置)
 - [配置项](#配置项)
 - [日常运维](#日常运维)
@@ -182,6 +183,42 @@ docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./rootCA.crt
 4. 输入锁屏密码
 
 > ⚠️ 一定要选 **「CA 证书」**，不要选「VPN 和应用」或「WLAN 证书」—— 选错类型 Chrome 不会信任它。
+
+### 给电脑装证书（Windows / macOS / Linux）
+
+在电脑上调试时也要装，否则 Chrome 同样会报证书错误。
+
+**Windows**
+
+1. 双击 `rootCA.crt` → 「安装证书」
+2. 选 **「本地计算机」**（需要管理员权限）→ 下一步
+3. 选 **「将所有证书放入下列存储」** → 浏览 → 选 **「受信任的根证书颁发机构」**
+4. 完成 → 重启浏览器
+
+> ⚠️ **一定要选「受信任的根证书颁发机构」**。放进「个人」证书库 Chrome 不信任。
+
+**macOS**
+
+```bash
+sudo security add-trusted-cert -d -r trustRoot \
+  -k /Library/Keychains/System.keychain ./rootCA.crt
+```
+
+**Linux（Debian/Ubuntu）**
+
+```bash
+sudo cp rootCA.crt /usr/local/share/ca-certificates/hometalker.crt
+sudo update-ca-certificates
+```
+
+**Linux（Firefox）** —— Firefox 用自己的证书库，要单独导入：
+
+```bash
+# 先建库（没有的话）
+mkdir -p ~/.pki/nssdb && certutil -N -d sql:$HOME/.pki/nssdb --empty-password
+certutil -A -n "Caddy Local Authority" -t "C,C" \
+  -i rootCA.crt -d sql:$HOME/.pki/nssdb
+```
 
 ### 验证
 
@@ -398,6 +435,26 @@ rm -rf hometalker              # 删目录
 
 ## 排障
 
+### 先看浏览器到底在说什么
+
+不同的问题，Chrome / Safari 显示的文案完全不同。**先认文案，再对症下药**（下表是实测结果）：
+
+| 浏览器显示 | 实际原因 | 怎么办 |
+|---|---|---|
+| **「与 xxx 的连接不安全。该网站不支持 HTTPS。」** | 用了 `http://` 而不是 `https://`。Caddy 在 HTTPS 端口收到明文请求会返回一个合法的 HTTP 400 页面，浏览器把它当普通网页渲染 | 改成 `https://` |
+| **「隐私设置错误 / 您的连接不是私密连接」** `NET::ERR_CERT_AUTHORITY_INVALID` | 根 CA 没装到设备上 | 见[给手机装证书](#给手机装证书)。**iOS 一定要开「完全信任」** |
+| **「无法访问此网站」** `ERR_SSL_PROTOCOL_ERROR` | **用 IP 访问导致握手失败**。浏览器访问 IP 时不发送 SNI，反代匹配不到证书策略 | 改用主机名或域名，见[用域名代替 IP](#用域名代替-ip) |
+| **「此网站无法提供安全连接」** `ERR_CERT_DATE_INVALID` | 设备时间不对 | 设置里开启自动联网校时 |
+| 页面能开但**按说话没反应** | 麦克风权限被拒，或当前不是安全上下文 | 见[页面能开，但按说话没反应](#页面能开但按说话没反应) |
+
+快速判断当前页面是不是安全上下文（决定麦克风能不能用）：
+
+```bash
+# 在浏览器控制台执行
+window.isSecureContext      // 必须是 true，否则麦克风不可用
+navigator.mediaDevices?.getUserMedia   // 非安全上下文下是 undefined
+```
+
 ### 打不开页面
 
 ```bash
@@ -417,9 +474,11 @@ curl -k https://192.168.1.50/api/health   # 服务本身通吗
 
 | 现象 | 原因 / 解决 |
 |---|---|
+| 「该网站不支持 HTTPS」 | 协议写错了，改用 `https://` |
 | `ERR_CERT_AUTHORITY_INVALID` | 根 CA 没装好。**iOS 检查第二步「完全信任」有没有开** |
 | `ERR_CERT_COMMON_NAME_INVALID` | `SITE_ADDR` 改了但没 `docker compose restart caddy` |
 | `ERR_CERT_DATE_INVALID` | 手机时间不对。设置里自动联网校时 |
+| `ERR_SSL_PROTOCOL_ERROR`（用 IP 访问） | 浏览器不发 SNI，握手失败。**改用主机名** |
 | 换了 IP 之后打不开 | 改 `.env` 的 `SITE_ADDR` → `docker compose restart caddy` → 手机**不用**重装证书 |
 
 ### 页面能开，但按说话没反应
@@ -469,7 +528,13 @@ docker compose logs --tail=30 server
 
 ## 进阶玩法
 
-### 用域名代替 IP（更方便记）
+### 用域名代替 IP
+
+**推荐做法，某些环境下是必需做法。**
+
+> **为什么必须用主机名？** 浏览器访问 **IP 地址时不发送 SNI**（TLS 协议规定 SNI 里只能放 DNS 名）。
+> Caddy 需要靠 SNI 匹配证书策略，空 SNI 匹配不上就直接握手失败，浏览器报 `ERR_SSL_PROTOCOL_ERROR`。
+> 表现就是「用 IP 完全打不开，用域名一切正常」。
 
 1. 在内网 DNS（路由器、AdGuard Home、Pi-hole）里加一条静态解析：`talk.home` → `192.168.1.50`
    - ⚠️ **Android Chrome 不解析 `.local`**，用 `.home` `.lan` `.internal` 这类自定义后缀，或干脆用你已有的域名
@@ -477,6 +542,17 @@ docker compose logs --tail=30 server
 3. `docker compose restart caddy`
 
 Caddy 会自动给新域名签一张证书，**根 CA 没变，手机不用重装**。
+
+自己验证一下握手是否正常：
+
+```bash
+# 带 SNI（用域名访问）→ 应该成功
+openssl s_client -connect talk.home:443 -servername talk.home </dev/null 2>/dev/null \
+  | openssl x509 -noout -subject -ext subjectAltName
+
+# 不带 SNI（用 IP 访问）→ 预期 alert internal error，这就是 IP 访问失败的原因
+openssl s_client -connect 192.168.1.50:443 </dev/null 2>&1 | grep -E 'alert|issuer='
+```
 
 ### 出门也能用（Tailscale）
 

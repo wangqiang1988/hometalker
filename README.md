@@ -49,7 +49,28 @@ docker compose cp caddy:/data/caddy/pki/authorities/local/root.crt ./rootCA.crt
 
 > ⚠️ **必须用 HTTPS**。浏览器的麦克风接口只在安全上下文可用，`http://192.168.x.x` 会被直接禁用 —— 表现是「能听不能说」，而且没有绕过办法。
 
+> ⚠️ **强烈建议改用主机名而不是 IP**。用 IP 访问时浏览器**不会发送 SNI**（TLS 协议不允许在 SNI 里放 IP），部分反代配置下会直接握手失败。详见下方[用域名代替 IP](#用域名代替-ip)。
+
 完整步骤、证书安装、局域网设置和排障都在 **[DEPLOY.md](DEPLOY.md)**。
+
+### 用域名代替 IP
+
+内网 DNS（路由器 / AdGuard Home / Pi-hole）里加一条记录，比如 `talk.home` → `192.168.1.50`，然后：
+
+```ini
+SITE_ADDR=talk.home        # .env 里改成主机名
+```
+
+```bash
+docker compose restart caddy
+```
+
+好处有两个：
+
+1. **浏览器会发送 SNI**，握手不会出问题（用 IP 访问时没有 SNI，某些 Caddy 配置会直接握手失败）
+2. **换 IP 不用重签证书** —— 根 CA 十年有效，改完 `SITE_ADDR` 重启即可
+
+注意：Android 浏览器**不解析 `.local`**，用 `.home` `.lan` `.internal` 这类自定义后缀，或直接用你已有的域名。
 
 ---
 
@@ -153,7 +174,9 @@ hometalker/
 ├── docker-compose.yml      # caddy + server 两个服务
 ├── Caddyfile               # tls internal + reverse_proxy
 ├── .env.example            # 配置模板
-├── DEPLOY.md               # Docker 部署文档
+├── DEPLOY.md               # 部署手册
+├── HANDOFF.md              # 交接文档（含 nginx 替换 Caddy 的完整方案）
+├── docs/images/            # 真实 Chrome 截的界面图
 ├── server/                 # Node 20 + TypeScript（运行时仅依赖 ws）
 │   └── src/
 │       ├── index.ts        # HTTP + WebSocket upgrade + 心跳
@@ -224,6 +247,16 @@ node scripts/browser-e2e.mjs
 4. **不能同时多人说话**（半双工）。这是对讲机语义
 5. **只在家里 Wi-Fi 下用**。出门后连不上（除非自己加 VPN / 内网穿透）
 6. **服务端能看到明文 PCM**（它只在内存里转发，不落盘、不录音）
+7. **不要用裸 IP 访问**。浏览器访问 IP 时不发送 SNI，某些反代配置下会直接握手失败（`ERR_SSL_PROTOCOL_ERROR`）。用主机名或域名，见[用域名代替 IP](#用域名代替-ip)
+
+---
+
+## 文档
+
+| 文档 | 内容 |
+|---|---|
+| [DEPLOY.md](DEPLOY.md) | 部署手册：六步部署、iOS/Android/桌面装证书、局域网设置、配置项、运维、备份迁移、排障 |
+| [HANDOFF.md](HANDOFF.md) | 交接文档：环境探测结果、已诊断的根因、nginx 替换 Caddy 的完整方案、踩过的坑 |
 
 ---
 
